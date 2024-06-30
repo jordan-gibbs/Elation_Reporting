@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import report_data_parse
+import doc_creator3
 
 # Define function to extract scoring instructions
 def extract_scoring_instructions(scoring_df):
@@ -17,14 +19,12 @@ def extract_scoring_instructions(scoring_df):
         scoring_instructions[variable_name].append((question, weight))
     return scoring_instructions
 
-
 # Define function to calculate scores
 def calculate_scores(merged_df, scoring_instructions):
     for variable, instructions in scoring_instructions.items():
         total_score = sum([merged_df[question] * weight for question, weight in instructions])
         merged_df[variable] = total_score
     return merged_df
-
 
 # Define function to back convert agree/disagree columns
 def back_convert_agree_disagree(merged_df, columns, mapping):
@@ -33,12 +33,10 @@ def back_convert_agree_disagree(merged_df, columns, mapping):
             merged_df[column] = merged_df[column].map(mapping)
     return merged_df
 
-
 # Define function to extract final layout
 def extract_final_layout(merged_df, final_layout_columns):
     final_df = merged_df[final_layout_columns]
     return final_df
-
 
 # Streamlit app
 st.title("Elation Data Processor")
@@ -112,10 +110,37 @@ if demographics_file and raw_data_file:
     # Download link for the final dataframe
     csv = final_df.to_csv(index=False).encode('utf-8')
     st.download_button(
-        label="Download Processed CSV",
+        label="Download Processed Data (Raw)",
         data=csv,
-        file_name=f'{org}_calculated_scores_data.csv',
+        file_name=f'{org}_processed_data.csv',
         mime='text/csv',
     )
 
-    st.success("Dataset created successfully")
+    final_xlsx_path = f"{org}_Insights.xlsx"
+    report_data_parse.create_xlsx_report(demographics_df, final_df, final_xlsx_path)
+
+    # Download link for the xlsx report
+    with open(final_xlsx_path, "rb") as file:
+        btn = st.download_button(
+            label="Download Insights Report",
+            data=file,
+            file_name=f"{org}_insights_report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    # st.success("Dataset created successfully")
+
+    # Generate the PDF report
+    pdf_path = f"{org}_report.pdf"
+    logo_path = "elation_logo.png"  # Update this path to where your logo file is located
+    doc_creator3.create_pdf_with_header_and_recommendations(final_xlsx_path, pdf_path, org, logo_path)
+
+    # Download link for the PDF report
+    with open(pdf_path, "rb") as file:
+        btn = st.download_button(
+            label="Download PDF Report",
+            data=file,
+            file_name=f"{org}_report.pdf",
+            mime="application/pdf"
+        )
+
