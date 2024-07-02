@@ -1,7 +1,16 @@
 import streamlit as st
 import pandas as pd
-import report_data_parse
+from report_data_parse import create_xlsx_report
 import doc_creator3
+import tempfile
+from workplace_culture import create_culture_report
+
+if 'demo' not in st.session_state:
+    st.session_state['demo'] = None
+
+if 'subgroup' not in st.session_state:
+    st.session_state['subgroup'] = None
+
 
 # Define function to extract scoring instructions
 def extract_scoring_instructions(scoring_df):
@@ -50,6 +59,7 @@ final_layout_df = pd.read_csv('CSVs/ER App - Ideal Data Output Format.csv')
 
 if demographics_file and raw_data_file:
     demographics_df = pd.read_csv(demographics_file)
+    total_demo_df=demographics_df
     raw_data_df = pd.read_csv(raw_data_file)
 
     # Ensure the columns for merging are aligned
@@ -58,8 +68,22 @@ if demographics_file and raw_data_file:
     # Merge data on respondentId
     merged_df = pd.merge(demographics_df, raw_data_df, on="respondentId", how="inner")
 
-    # Fill Demographic 1 with groupName
-    merged_df['Demographic 1'] = merged_df['groupName']
+    # Check and fill Demographic 1 with groupName if groupName exists
+    if 'groupName' in merged_df.columns:
+        merged_df['Demographic 1'] = merged_df['groupName']
+        print("'Demographic 1' assigned from 'groupName'")
+
+    # Check if there are any columns ending with '_x'
+    x_columns = [col for col in merged_df.columns if col.endswith('_x') and not col.startswith('score_')]
+
+    if x_columns:
+        demographic_columns = ['Demographic 2', 'Demographic 3', 'Demographic 4']
+        for demo_col, x_col in zip(demographic_columns, x_columns):
+            merged_df[demo_col] = merged_df[x_col]
+            print(f"'{demo_col}' assigned from '{x_col}'")
+            merged_df.drop(columns=[x_col], inplace=True)
+
+    ### INSERT DEMOGRAPHIC 4 HERE IF NEEDED
 
     # Rename durationSeconds to Duration
     merged_df.rename(columns={'durationSeconds': 'Duration'}, inplace=True)
@@ -87,14 +111,17 @@ if demographics_file and raw_data_file:
         'I am empowered to investigate problems and explore new ideas at work.'
     ]
 
+    xlsx_df = merged_df
     merged_df = back_convert_agree_disagree(merged_df, agree_disagree_columns, categorical_mapping)
 
     # Replace the userId column with respondentId (renamed to userId)
     merged_df['userId'] = merged_df['respondentId']
 
+
+    # Create the list of final layout columns, including all columns from final_layout_df
+    final_layout_columns = list(final_layout_df.columns)
+
     # Ensure Duration is in the final layout columns and handle capitalization
-    final_layout_columns = [col for col in final_layout_df.columns if
-                            col not in ['Demographic 2', 'Demographic 3', 'Demographic 4']]
     if 'Duration' not in final_layout_columns:
         final_layout_columns.append('Duration')
 
@@ -102,7 +129,11 @@ if demographics_file and raw_data_file:
     if 'userId' not in final_layout_columns:
         final_layout_columns.insert(0, 'userId')
 
-    final_df = extract_final_layout(merged_df, final_layout_columns)
+    # Ensure final_layout_columns only includes columns that exist in merged_df
+    final_layout_columns = [col for col in final_layout_columns if col in merged_df.columns]
+
+    # Proceed with extracting the final layout
+    final_df = merged_df[final_layout_columns]
 
     # Round all values to the nearest whole number
     final_df = final_df.round()
@@ -116,31 +147,99 @@ if demographics_file and raw_data_file:
         mime='text/csv',
     )
 
-    final_xlsx_path = f"{org}_Insights.xlsx"
-    report_data_parse.create_xlsx_report(demographics_df, final_df, final_xlsx_path)
+    # Define the demographic terms to search for
+    demographic_terms = ['Demographic 1', 'Demographic 2', 'Demographic 3', 'Demographic 4']
 
-    # Download link for the xlsx report
-    with open(final_xlsx_path, "rb") as file:
-        btn = st.download_button(
-            label="Download Insights Report",
-            data=file,
-            file_name=f"{org}_insights_report.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+    # Filter the dataframe to include only the demographic columns
+    demographics_df = final_df[[col for col in final_df.columns if col in demographic_terms]]
 
-    # st.success("Dataset created successfully")
+    # Display buttons horizontally and process the selected option
+    if not demographics_df.empty:
+        # Select the first 3 rows
+        display_df = demographics_df.head(4).copy()
 
-    # Generate the PDF report
-    pdf_path = f"{org}_report.pdf"
-    logo_path = "elation_logo.png"  # Update this path to where your logo file is located
-    doc_creator3.create_pdf_with_header_and_recommendations(final_xlsx_path, pdf_path, org, logo_path)
+        # Create a new row with '...' for each column
+        ellipsis_row = pd.DataFrame({col: ['...'] for col in display_df.columns})
 
-    # Download link for the PDF report
-    with open(pdf_path, "rb") as file:
-        btn = st.download_button(
-            label="Download PDF Report",
-            data=file,
-            file_name=f"{org}_report.pdf",
-            mime="application/pdf"
-        )
+        # Concatenate the ellipsis row
+        display_df = pd.concat([display_df, ellipsis_row], ignore_index=True)
+
+        # Add 1 to each index
+        display_df.index = display_df.index + 1
+
+        st.table(display_df)
+
+        demographic_options = demographics_df.columns.tolist()
+
+        # Display buttons horizontally
+        st.write("Please choose the Demographic data you want to export")
+        cols = st.columns(len(demographic_options))
+        clicked_button = None
+        for i, col in enumerate(cols):
+            if col.button(demographic_options[i]):
+                st.session_state['demo'] = demographic_options[i]
+                clicked_button = demographic_options[i]
+
+        if st.session_state['demo']:
+            demo = st.session_state['demo']
+            st.markdown("""---""")
+
+            # Call the function to create the Excel report
+            output_df = create_xlsx_report(xlsx_df, total_demo_df, final_df, demographic_name=demo)
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+                tmp.write(output_df.getvalue())
+                tmp_path = tmp.name
+
+                # Generate the PDF report
+                pdf_path = f"{org}_report.pdf"
+                logo_path = "elation_logo.png"  # Update this path to where your logo file is located
+                doc_creator3.create_pdf_with_header_and_recommendations(tmp_path, pdf_path, org, logo_path, demo)
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.download_button(
+                        label=f"Download {demo} Insights Data",
+                        data=output_df,
+                        file_name=f"{org}_insights_report.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+
+                with open(pdf_path, "rb") as file:
+                    with col2:
+                        st.download_button(
+                            label=f"Download {demo} PDF Report",
+                            data=file,
+                            file_name=f"{org}_report.pdf",
+                            mime="application/pdf"
+                        )
+
+                st.markdown("""---""")
+
+                unique_items = xlsx_df[demo].unique()
+
+                st.write("Select a subgroup to generate a report on:")
+                subgroup = st.selectbox('Subgroup:', ['Select...'] + list(unique_items))
+
+                if subgroup != 'Select...':
+                    st.session_state['subgroup'] = subgroup
+
+                if st.session_state['subgroup']:
+                    subgroup = st.session_state['subgroup']
+                    buf = create_culture_report(demo, subgroup, final_df)
+
+                    # Provide a download button for the generated image
+                    st.download_button(
+                        label="Download Culture Report Image",
+                        data=buf,
+                        file_name=f'{subgroup}_culture_report.png',
+                        mime="image/png"
+                    )
+
+
+
+
+
+
 
