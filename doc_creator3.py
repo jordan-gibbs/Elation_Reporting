@@ -5,8 +5,8 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 
-def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_name, logo_path):
-    sheet_name = 'Completion Rate by Department'
+def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_name, logo_path, demo):
+    sheet_name = 'Completion Rate'
     lowest_scores_sheet = 'Lowest Scores'
 
     # Read the data from the sheets
@@ -30,16 +30,16 @@ def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_n
     elements.append(Spacer(1, 12))
 
     for _, row in data.iterrows():
-        group_name = row['groupName']
+        group_name = row[demo]
         completed = row['completed_members']
         total = row['total_members']
         completion_rate = row['completion_rate']
 
-        section_title = f"{group_name} – {completed} of {total}, {completion_rate}%"
+        section_title = f"{group_name} – {completed} of {total}, {completion_rate}"
         elements.append(Paragraph(section_title, styles['Heading2']))
         elements.append(Spacer(1, 12))
 
-        lowest_row = lowest_scores[lowest_scores['Department'] == group_name]
+        lowest_row = lowest_scores[lowest_scores[f'{demo}'] == group_name]
         if not lowest_row.empty:
             lowest_inf = lowest_row.iloc[0]['Lowest Influencer'].split(':')
             second_lowest_inf = lowest_row.iloc[0]['Second Lowest Influencer'].split(':')
@@ -88,3 +88,4 @@ def header(canvas, doc, company_name, logo_path, scale_factor=0.14):
     logo.drawOn(canvas, letter[0] - scaled_width - 1.25 * inch, letter[1] - scaled_height - 0.4 * inch)
 
     canvas.restoreState()
+
