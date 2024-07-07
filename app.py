@@ -192,7 +192,7 @@ if demographics_file and raw_data_file:
                 tmp_path = tmp.name
 
                 # Generate the PDF report
-                pdf_path = f"{demo}_report.pdf"
+                pdf_path = f"{org}_report.pdf"
                 logo_path = "elation_logo.png"  # Update this path to where your logo file is located
                 doc_creator3.create_pdf_with_header_and_recommendations(tmp_path, pdf_path, org, logo_path, demo)
 
@@ -202,7 +202,7 @@ if demographics_file and raw_data_file:
                     st.download_button(
                         label=f"Download {demo} Insights Data",
                         data=output_df,
-                        file_name=f"{demo}_insights.xlsx",
+                        file_name=f"{org}_insights_report.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
 
@@ -211,7 +211,7 @@ if demographics_file and raw_data_file:
                         st.download_button(
                             label=f"Download {demo} PDF Report",
                             data=file,
-                            file_name=f"{demo}_report.pdf",
+                            file_name=f"{org}_report.pdf",
                             mime="application/pdf"
                         )
 
@@ -231,15 +231,8 @@ if demographics_file and raw_data_file:
 
                     # Provide a download button for the generated image
                     st.download_button(
-                        label="Download Culture Report Image",
+                        label="Download Culture Report",
                         data=buf,
-                        file_name=f'{subgroup}_culture_report.png',
-                        mime="image/png"
+                        file_name=f'{subgroup}_culture_report.pdf',
+                        mime="image/pdf"
                     )
-
-
-
-
-
-
-
