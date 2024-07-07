@@ -1,8 +1,14 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from io import BytesIO
 import textwrap
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+import tempfile
+import os
+from PIL import Image
+from io import BytesIO
 
 def create_culture_report(subgroup, subgroup_value, data):
     # Convert the data to a DataFrame if it's not already
@@ -69,9 +75,40 @@ def create_culture_report(subgroup, subgroup_value, data):
     plt.tight_layout()
     plt.subplots_adjust(left=0.3)  # Adjust the left margin to provide more space for y-axis labels
 
-    # Save the plot to a BytesIO object
-    buf = BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
+    # Save the plot to a temporary file
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+    plt.savefig(temp_file.name, format='png', dpi=300)
+    temp_file.close()
 
-    return buf
+    # Create a PDF and embed the plot
+    pdf_buf = BytesIO()
+    c = canvas.Canvas(pdf_buf, pagesize=letter)
+    width, height = letter
+
+    # Get the dimensions of the image
+    with Image.open(temp_file.name) as img:
+        img_width, img_height = img.size
+
+    # Calculate the dimensions to maintain the aspect ratio
+    aspect = img_width / img_height
+    new_width = width
+    new_height = width / aspect
+
+    # Ensure the image fits within the page
+    if new_height > height:
+        new_height = height
+        new_width = height * aspect
+
+    # Draw the image on the PDF
+    img = ImageReader(temp_file.name)
+    c.drawImage(img, 0, height - new_height, width=new_width, height=new_height)  # Adjust dimensions to maintain aspect ratio
+
+    c.showPage()
+    c.save()
+    pdf_buf.seek(0)
+
+    # Clean up the temporary file
+    os.unlink(temp_file.name)
+
+    return pdf_buf
+
