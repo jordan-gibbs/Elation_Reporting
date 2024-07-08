@@ -3,7 +3,7 @@ import pandas as pd
 from report_data_parse import create_xlsx_report
 import doc_creator3
 import tempfile
-from workplace_culture import create_culture_report
+from workplace_culture import create_culture_report, create_glossary_pdf, subgroup_table, merge_pdfs
 
 if 'demo' not in st.session_state:
     st.session_state['demo'] = None
@@ -227,12 +227,28 @@ if demographics_file and raw_data_file:
 
                 if st.session_state['subgroup']:
                     subgroup = st.session_state['subgroup']
-                    buf = create_culture_report(demo, subgroup, final_df)
+                    # Generate glossary PDF
+                    glossary_pdf = create_glossary_pdf()
 
-                    # Provide a download button for the generated image
+                    # Generate culture report PDF
+                    buf = create_culture_report(demo, subgroup, final_df)
+                    output_df = pd.read_excel(tmp_path, sheet_name=None)
+                    buf2 = subgroup_table(raw_data_df, org, subgroup, output_df, demo)
+
+                    # Merge PDFs
+                    combined_pdf = merge_pdfs(buf.getvalue(), glossary_pdf, buf2)
+
+                    # Provide a download button for the combined PDF
                     st.download_button(
-                        label="Download Culture Report",
-                        data=buf,
-                        file_name=f'{subgroup}_culture_report.pdf',
-                        mime="image/pdf"
+                        label="Download Subgroup Report",
+                        data=combined_pdf,
+                        file_name=f'{subgroup}_Subgroup_Report.pdf',
+                        mime="application/pdf"
                     )
+
+
+
+
+
+
+
