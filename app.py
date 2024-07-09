@@ -194,7 +194,8 @@ if demographics_file and raw_data_file:
                 # Generate the PDF report
                 pdf_path = f"{org}_report.pdf"
                 logo_path = "elation_logo.png"  # Update this path to where your logo file is located
-                doc_creator3.create_pdf_with_header_and_recommendations(tmp_path, pdf_path, org, logo_path, demo)
+                doc_creator3.create_pdf_with_header_and_recommendations(tmp_path, pdf_path, org, logo_path, raw_data_df, demo)
+
 
                 col1, col2 = st.columns(2)
 
