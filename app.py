@@ -48,7 +48,7 @@ def extract_final_layout(merged_df, final_layout_columns):
     return final_df
 
 # Streamlit app
-st.title("Elation Data Processor")
+st.title("Elation Reporting App")
 org = st.text_input("Please Input the Organization Name")
 
 st.header("Upload files")
