@@ -126,18 +126,46 @@ def create_xlsx_report(demographics_df, total_demo_df, raw_data_df, demographic_
 
         # Process each row to find the lowest 3 scores and their column names
         results = pd.DataFrame(
-            columns=[demographic_name, 'Lowest Influencer', 'Second Lowest Influencer', 'Third Lowest Influencer'])
+            columns=[demographic_name, 'Demographic Size', 'Lowest Influencer', 'Second Lowest Influencer'])
 
+        # Predefined list of columns to examine
+        org_influencers = [
+            'Belonging in Organization',
+            'Healthy Workplace Relationships',
+            'Inclusive Leadership',
+            'Job Autonomy',
+            'Job Crafting',
+            'Job Security',
+            'Job Significance',
+            'Leadership Feedback Style',
+            'Opportunities for Advancement',
+            'Reward or Compensation Satisfaction',
+            'Scheduling Control',
+            'Social Support at Work',
+            'Time for Leisure',
+            'Value Alignment',
+            'Work Knowledge Acquisition',
+            'Work-Life Balance',
+            'Workload'
+        ]
+
+        # Create demographic_totals Series
+        demographic_totals = department_counts.set_index(department_column)['total_members']
+
+        # Compute lowest scores and update results DataFrame
         for index, row in average_scores_by_demographic.iterrows():
-            # Ensure numeric columns only
-            numeric_row = row[numeric_metrics_columns].astype(float)  # Convert to float
-            lowest_scores = numeric_row.nsmallest(3)
+            numeric_row = row[numeric_metrics_columns].astype(float)
+            filtered_numeric_row = numeric_row[numeric_row.index.intersection(org_influencers)]
+            lowest_scores = filtered_numeric_row.nsmallest(2)
+
             results = pd.concat([results, pd.DataFrame({
-                demographic_name: [row[demographic_name]],  # Assuming the first column contains the department names
+                demographic_name: [row[demographic_name]],
                 'Lowest Influencer': [f"{lowest_scores.index[0]}: {lowest_scores.iloc[0]}"],
                 'Second Lowest Influencer': [f"{lowest_scores.index[1]}: {lowest_scores.iloc[1]}"],
-                'Third Lowest Influencer': [f"{lowest_scores.index[2]}: {lowest_scores.iloc[2]}"]
             })], ignore_index=True)
+
+        # Add Demographic Size column to results DataFrame
+        results['Demographic Size'] = results[demographic_name].map(demographic_totals)
 
         results.to_excel(writer, sheet_name='Lowest Scores', index=False)
 
