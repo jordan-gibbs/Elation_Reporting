@@ -4,8 +4,17 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import Flowable
+from datetime import datetime
+import pandas as pd
+from overall_report_table import subgroup_table
 
-def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_name, logo_path, demo):
+def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_name, logo_path, raw_df, demo):
     sheet_name = 'Completion Rate'
     lowest_scores_sheet = 'Lowest Scores'
 
@@ -15,6 +24,12 @@ def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_n
 
     doc = SimpleDocTemplate(output_pdf, pagesize=letter)
     elements = []
+
+    # Add subgroup table elements
+    output_df = pd.read_excel(excel_file, sheet_name=None)
+    demo2 = "Org Total"
+    subgroup_elements = subgroup_table(raw_df, company_name, demo2, output_df)
+    elements.extend(subgroup_elements)
 
     # Define styles
     styles = getSampleStyleSheet()
@@ -34,6 +49,20 @@ def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_n
         fontName='Helvetica-Bold'
     )
 
+    class HorizontalLine(Flowable):
+        def __init__(self, width):
+            super().__init__()
+            self.width = width
+
+        def draw(self):
+            self.canv.line((self.canv._pagesize[0] - self.width) / 2, 0, (self.canv._pagesize[0] + self.width) / 2, 0)
+
+    def add_horizontal_line(elements, width=1000):
+        elements.append(Spacer(1, 24))
+        elements.append(HorizontalLine(width))
+        elements.append(Spacer(1, 24))
+
+    add_horizontal_line(elements)
     # Add recommendations
     elements.append(Paragraph("RECOMMENDATIONS", title_style))
     elements.append(Spacer(1, 12))
