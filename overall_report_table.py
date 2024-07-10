@@ -12,8 +12,6 @@ def subgroup_table(raw_df, org_name, demo, output_df):
     latest_time = raw_df['reportedAt'].max()
     month = latest_time.strftime('%b %Y')
 
-    elements = []
-
     first_sheet_name = list(output_df.keys())[0]
     scores_df = output_df[first_sheet_name]
     demographic_column = scores_df.columns[scores_df.columns.str.contains("Demographic", case=False)].tolist()[0]
@@ -90,25 +88,38 @@ def subgroup_table(raw_df, org_name, demo, output_df):
     bottom_scores = bottom_three_rows['Score'].tolist()
     bottom_metrics = bottom_three_rows['Metric'].tolist()
 
+    elements = []
+
+    # Elation norm values
+    elation_norm = [62, 69, 65, 67]
+
     # Find the relevant rows and extract their values
     metrics = ["Wellbeing/Performance Potential", "Job Satisfaction", "Job Engagement", "Intent to Stay"]
-    norms = [62, 69, 65, 67]
 
     score_data = {}
     for metric in metrics:
-        score_data[metric] = int(org_total_row[metric].values[0])
+        score_data[metric] = float(org_total_row[metric].values[0])
+
+    # Calculate deltas for elation norm and store in a new dictionary
+    delta_elation_data = {}
+    for metric, elation_value in zip(metrics, elation_norm):
+        subgroup_value = float(org_total_row[metric].values[0])
+        delta = subgroup_value - elation_value
+        delta_elation_data[metric] = delta
+
+    # Sort the score_data by values in descending order
+    sorted_score_data = sorted(score_data.items(), key=lambda item: item[1], reverse=True)
 
     # Create the structured data for PDF
     outcomes = [
-        ["Influencers", "Score", "vs Elation Norm"]
+        ["Influencers", f"{month}", "vs Organization", "vs Elation Norm"],
     ]
 
-    for metric, norm in zip(metrics, norms):
-        value = score_data[metric]
-        difference = value - norm
-        outcomes.append([metric, str(value), str(difference)])
+    for metric, value in sorted_score_data:
+        delta_elation = delta_elation_data[metric]
+        delta_elation_str = f"{'+' if delta_elation > 0 else ''}{int(delta_elation)}"
+        outcomes.append([metric, str(int(value)), delta_elation_str])
 
-    # print(outcomes)
 
     sheet_name = 'Completion Rate'
     completion_rate_df = output_df[sheet_name]
@@ -352,7 +363,7 @@ def subgroup_table(raw_df, org_name, demo, output_df):
 
     # Create and add the header as a table to control spacing
     header_table_data = [[Paragraph(header_data2[0], header_style), Paragraph(header_data2[1], header_style), Paragraph(header_data2[2], header_style),]]
-    header_table = Table(header_table_data, colWidths=[130,105,315])
+    header_table = Table(header_table_data, colWidths=[235,105,210])
     header_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
@@ -366,10 +377,28 @@ def subgroup_table(raw_df, org_name, demo, output_df):
 
     elements.append(header_table)
 
+    table = Table(body_data_wrapped2, colWidths=[235,105,210])
+    style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ])
     # Create and style the body table
-    body_table = Table(body_data_wrapped2, colWidths=[130,105,315])
-    body_table.setStyle(body_style)
-    elements.append(body_table)
+    # Add colors for deltas
+    for i in range(len(body_data2)):
+        if int(body_data2[i][2]) >= 0:
+            style.add('BACKGROUND', (2, i), (2, i), colors.HexColor("#A6CF5C"))
+        else:
+            style.add('BACKGROUND', (2, i), (2, i), colors.HexColor("#DE9C95"))
+
+    # Apply style to table
+    table.setStyle(style)
+    elements.append(table)
 
     if bad_scores == 0:
         assessment_highlight = [["For the OVERALL group, there were 0 influencers scoring lower than " \
