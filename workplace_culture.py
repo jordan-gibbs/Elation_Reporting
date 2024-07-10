@@ -22,6 +22,9 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from datetime import datetime
 import pandas as pd
+from reportlab.platypus import Table, TableStyle, Paragraph
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
 
 # Function to create glossary PDF
 def create_glossary_pdf():
@@ -236,14 +239,14 @@ def create_culture_report(subgroup, subgroup_value, data):
     ])
 
     # Colors for each category
-    colors = ['#F24837', '#FC8F3E', '#FCCE48', '#C8DA51', '#5FBE78']
+    colorz = ['#F24837', '#FC8F3E', '#FCCE48', '#C8DA51', '#5FBE78']
     categories = ['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree']
 
     fig, ax = plt.subplots(figsize=(14, 8))  # Increase figure width for wider labels
 
     # Plotting the data
     cumulative_data = np.cumsum(data_values, axis=1)
-    for i, (color, category) in enumerate(zip(colors, categories)):
+    for i, (color, category) in enumerate(zip(colorz, categories)):
         ax.barh(columns_of_interest, data_values[:, i], left=cumulative_data[:, i] - data_values[:, i], color=color, label=category, edgecolor='white', height=0.5)  # Increase bar height
 
     # Adding percentage labels within the blocks
@@ -254,11 +257,11 @@ def create_culture_report(subgroup, subgroup_value, data):
 
     # Wrap y-tick labels and hide y-ticks
     wrap_width = 30  # Set your desired wrap width here
-    ax.set_yticklabels([textwrap.fill(label, wrap_width) for label in columns_of_interest], fontsize=14, weight='bold')
+    ax.set_yticklabels([textwrap.fill(label, wrap_width) for label in columns_of_interest], fontsize=14)
     ax.yaxis.set_ticks_position('none')
 
     # Customizing the plot to match the desired style
-    ax.legend(bbox_to_anchor=(0.5, 0), loc='upper center', ncol=5, frameon=False, prop={'size': 12, 'weight': 'bold'})
+    ax.legend(bbox_to_anchor=(0.5, 0), loc='upper center', ncol=5, frameon=False, prop={'size': 12})
     ax.set_xlim(0, 100)
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(True)
@@ -294,9 +297,40 @@ def create_culture_report(subgroup, subgroup_value, data):
         new_height = height
         new_width = height * aspect
 
-    # Draw the image on the PDF
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        name='LeftH2',
+        parent=styles['Heading1'],
+        alignment=1,
+        fontSize=14,
+        textColor=colors.white
+    )
+
+    # Create the table data
+    title_table_data = [[Paragraph("Summary", title_style)]]
+    title_table = Table(title_table_data, colWidths=[width])
+    title_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.gray),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+    ]))
+
+    # Calculate the position for the image to be below the table
+    table_height = 20  # approximate height of the table
+    img_y_position = height - new_height - table_height - 50
+
+    # Draw the table on the PDF
+    title_table.wrapOn(c, width, table_height)
+    title_table.drawOn(c, 0, img_y_position + new_height)
+
+    # Draw the image on the PDF below the table
     img = ImageReader(temp_file.name)
-    c.drawImage(img, 0, height - new_height, width=new_width, height=new_height)  # Adjust dimensions to maintain aspect ratio
+    c.drawImage(img, 0, img_y_position, width=new_width * 0.95,
+                height=new_height * 0.95)  # Adjust dimensions to maintain aspect ratio
 
     c.showPage()
     c.save()
@@ -325,22 +359,52 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     demographic_column = scores_df.columns[scores_df.columns.str.contains("Demographic", case=False)].tolist()[0]
     org_total_row = scores_df[scores_df[demographic_column].str.contains(subgroup, case=False, na=False)]
 
+    demographic_column = scores_df.columns[scores_df.columns.str.contains("Demographic", case=False)].tolist()[0]
+
+    # Extract the relevant rows for the subgroup and organization total
+    org_total_row = scores_df[scores_df[demographic_column].str.contains(subgroup, case=False, na=False)]
+    group_total = scores_df[scores_df[demographic_column].str.contains("Org Total", case=False, na=False)]
+
+    # Elation norm values
+    elation_norm = [62, 69, 65, 67]
+
     # Find the relevant rows and extract their values
     metrics = ["Wellbeing/Performance Potential", "Job Satisfaction", "Job Engagement", "Intent to Stay"]
 
     score_data = {}
     for metric in metrics:
-        score_data[metric] = str(org_total_row[metric].values[0])
+        score_data[metric] = float(org_total_row[metric].values[0])
+
+    # Calculate deltas for organization total and store in a new dictionary
+    delta_org_data = {}
+    for metric in metrics:
+        org_value = float(group_total[metric].values[0])
+        subgroup_value = float(org_total_row[metric].values[0])
+        delta = subgroup_value - org_value
+        delta_org_data[metric] = delta
+
+    # Calculate deltas for elation norm and store in a new dictionary
+    delta_elation_data = {}
+    for metric, elation_value in zip(metrics, elation_norm):
+        subgroup_value = float(org_total_row[metric].values[0])
+        delta = subgroup_value - elation_value
+        delta_elation_data[metric] = delta
+
+    # Sort the score_data by values in descending order
+    sorted_score_data = sorted(score_data.items(), key=lambda item: item[1], reverse=True)
 
     # Create the structured data for PDF
     outcomes = [
-        ["Influencers", f"{month}"]
+        ["Influencers", f"{month}", "vs Organization", "vs Elation Norm"],
     ]
 
-    for metric, value in score_data.items():
-        outcomes.append([metric, value])
+    for metric, value in sorted_score_data:
+        delta_org = delta_org_data[metric]
+        delta_elation = delta_elation_data[metric]
+        delta_org_str = f"{'+' if delta_org > 0 else ''}{int(delta_org)}"
+        delta_elation_str = f"{'+' if delta_elation > 0 else ''}{int(delta_elation)}"
+        outcomes.append([metric, str(int(value)), delta_org_str, delta_elation_str])
 
-    # print(outcomes)
 
     sheet_name = 'Completion Rate'
     completion_rate_df = output_df[sheet_name]
@@ -380,70 +444,119 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     ]
 
     demographic_column = scores_df.columns[scores_df.columns.str.contains("Demographic", case=False)].tolist()[0]
+
+    # Extract the relevant rows for the subgroup and organization total
     org_total_row = scores_df[scores_df[demographic_column].str.contains(subgroup, case=False, na=False)]
+    group_total = scores_df[scores_df[demographic_column].str.contains("Org Total", case=False, na=False)]
+
+    # Elation norm values
+    elation_norm = [65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65]
 
     # Find the relevant rows and extract their values
     metrics = [
-            'Belonging in Organization',
-            'Healthy Workplace Relationships',
-            'Inclusive Leadership',
-            'Job Autonomy',
-            'Job Crafting',
-            'Job Security',
-            'Job Significance',
-            'Leadership Feedback Style',
-            'Opportunities for Advancement',
-            'Reward or Compensation Satisfaction',
-            'Scheduling Control',
-            'Social Support at Work',
-            'Time for Leisure',
-            'Value Alignment',
-            'Work Knowledge Acquisition',
-            'Work-Life Balance',
-            'Workload'
-        ]
+        'Belonging in Organization',
+        'Healthy Workplace Relationships',
+        'Inclusive Leadership',
+        'Job Autonomy',
+        'Job Crafting',
+        'Job Security',
+        'Job Significance',
+        'Leadership Feedback Style',
+        'Opportunities for Advancement',
+        'Reward or Compensation Satisfaction',
+        'Scheduling Control',
+        'Social Support at Work',
+        'Time for Leisure',
+        'Value Alignment',
+        'Work Knowledge Acquisition',
+        'Work-Life Balance',
+        'Workload'
+    ]
 
     score_data = {}
     for metric in metrics:
-        score_data[metric] = str(org_total_row[metric].values[0])
+        score_data[metric] = float(org_total_row[metric].values[0])
+
+    # Calculate deltas for organization total and store in a new dictionary
+    delta_org_data = {}
+    for metric in metrics:
+        org_value = float(group_total[metric].values[0])
+        subgroup_value = float(org_total_row[metric].values[0])
+        delta = subgroup_value - org_value
+        delta_org_data[metric] = delta
+
+    # Calculate deltas for elation norm and store in a new dictionary
+    delta_elation_data = {}
+    for metric, elation_value in zip(metrics, elation_norm):
+        subgroup_value = float(org_total_row[metric].values[0])
+        delta = subgroup_value - elation_value
+        delta_elation_data[metric] = delta
+
+    # Sort the score_data by values in descending order
+    sorted_score_data = sorted(score_data.items(), key=lambda item: item[1], reverse=True)
 
     # Create the structured data for PDF
     workplace_indicators = [
-        ["Influencers", f"{month}"],
+        ["Influencers", f"{month}", "vs Organization", "vs Elation Norm"],
     ]
 
-    for metric, value in score_data.items():
-        workplace_indicators.append([metric, value])
-
-    # print(workplace_indicators)
+    for metric, value in sorted_score_data:
+        delta_org = delta_org_data[metric]
+        delta_elation = delta_elation_data[metric]
+        delta_org_str = f"{'+' if delta_org > 0 else ''}{int(delta_org)}"
+        delta_elation_str = f"{'+' if delta_elation > 0 else ''}{int(delta_elation)}"
+        workplace_indicators.append([metric, str(int(value)), delta_org_str, delta_elation_str])
 
     metrics = [
-             'Charity',
-             'Cognitive Empathy',
-             'Dietary Quality',
-             'Emotional Empathy',
-             'Gratitude',
-             'Healthy Personal Relationships',
-             'Knowledge Desire and Curiosity',
-             'Mindfulness Practice',
-             'Regular Meal Energy',
-             'Sleep Pattern Consistency',
-             'Sleep Quality',
-             'Workout Balance',
-             'Workout Frequency and length']
-
-    score_data = {}
-    for metric in metrics:
-        score_data[metric] = str(org_total_row[metric].values[0])
-
-    personal_indicators = [
-        ["Influencers", f"{month}"],
+        'Charity',
+        'Cognitive Empathy',
+        'Dietary Quality',
+        'Emotional Empathy',
+        'Gratitude',
+        'Healthy Personal Relationships',
+        'Knowledge Desire and Curiosity',
+        'Mindfulness Practice',
+        'Regular Meal Energy',
+        'Sleep Pattern Consistency',
+        'Sleep Quality',
+        'Workout Balance',
+        'Workout Frequency and length'
     ]
 
-    for metric, value in score_data.items():
-        personal_indicators.append([metric, value])
+    # Calculate score_data
+    score_data = {}
+    for metric in metrics:
+        score_data[metric] = float(org_total_row[metric].values[0])
 
-    # print(personal_indicators)
+    # Calculate deltas for organization total
+    delta_org_data = {}
+    for metric in metrics:
+        org_value = float(group_total[metric].values[0])
+        subgroup_value = float(org_total_row[metric].values[0])
+        delta = subgroup_value - org_value
+        delta_org_data[metric] = delta
+
+    # Calculate deltas for elation norm
+    delta_elation_data = {}
+    for metric, elation_value in zip(metrics, elation_norm):
+        subgroup_value = float(org_total_row[metric].values[0])
+        delta = subgroup_value - elation_value
+        delta_elation_data[metric] = delta
+
+    # Sort the score_data by values in descending order
+    sorted_score_data = sorted(score_data.items(), key=lambda item: item[1], reverse=True)
+
+    # Create the structured data for PDF
+    personal_indicators = [
+        ["Influencers", f"{month}", "vs Organization", "vs Elation Norm"],
+    ]
+
+    for metric, value in sorted_score_data:
+        delta_org = delta_org_data[metric]
+        delta_elation = delta_elation_data[metric]
+        delta_org_str = f"{'+' if delta_org > 0 else ''}{int(delta_org)}"
+        delta_elation_str = f"{'+' if delta_elation > 0 else ''}{int(delta_elation)}"
+        personal_indicators.append([metric, str(int(value)), delta_org_str, delta_elation_str])
 
     # Separate header from body
     header_data = participation[0]
@@ -571,8 +684,9 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     elements.append(subtitle_table)
 
     # Create and add the header as a table to control spacing
-    header_table_data = [[Paragraph(header_data2[0], header_style), Paragraph(header_data2[1], header_style)]]
-    header_table = Table(header_table_data, colWidths=[130,420])
+    header_table_data = [[Paragraph(header_data2[0], header_style), Paragraph(header_data2[1], header_style),
+                          Paragraph(header_data2[2], header_style), Paragraph(header_data2[3], header_style)]]
+    header_table = Table(header_table_data, colWidths=[235,105,105,105])
     header_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
@@ -587,9 +701,33 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     elements.append(header_table)
 
     # Create and style the body table
-    body_table = Table(body_data_wrapped2, colWidths=[130,420])
-    body_table.setStyle(body_style)
-    elements.append(body_table)
+    table = Table(body_data_wrapped2, colWidths=[235,105,105,105])
+    style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ])
+
+    # Add colors for deltas
+    for i in range(len(body_data2)):
+        if int(body_data2[i][2]) >= 0:
+            style.add('BACKGROUND', (2, i), (2, i), colors.HexColor("#A6CF5C"))
+        else:
+            style.add('BACKGROUND', (2, i), (2, i), colors.HexColor("#DE9C95"))
+
+        if int(body_data2[i][3]) >= 0:
+            style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#A6CF5C"))
+        else:
+            style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#DE9C95"))
+
+    # Apply style to table
+    table.setStyle(style)
+    elements.append(table)
 
     subtitle_table_data = [[Paragraph("Workplace Performance Influencers", subtitle_style)]]
     subtitle_table = Table(subtitle_table_data, colWidths=[550])
@@ -605,8 +743,9 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
 
     elements.append(subtitle_table)
 
-    header_table_data = [[Paragraph(header_data3[0], header_style), Paragraph(header_data3[1], header_style)]]
-    header_table = Table(header_table_data, colWidths=[235,315])
+    header_table_data = [[Paragraph(header_data3[0], header_style), Paragraph(header_data3[1], header_style),
+                          Paragraph(header_data3[2], header_style), Paragraph(header_data3[3], header_style)]]
+    header_table = Table(header_table_data, colWidths=[235,105,105,105])
     header_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
@@ -620,9 +759,33 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     elements.append(header_table)
 
     # Create and style the body table
-    body_table = Table(body_data_wrapped3, colWidths=[235,315])
-    body_table.setStyle(body_style)
-    elements.append(body_table)
+    table = Table(body_data_wrapped3, colWidths=[235,105,105,105])
+    style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ])
+
+    # Add colors for deltas
+    for i in range(len(body_data3)):
+        if int(body_data3[i][2]) >= 0:
+            style.add('BACKGROUND', (2, i), (2, i), colors.HexColor("#A6CF5C"))
+        else:
+            style.add('BACKGROUND', (2, i), (2, i), colors.HexColor("#DE9C95"))
+
+        if int(body_data3[i][3]) >= 0:
+            style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#A6CF5C"))
+        else:
+            style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#DE9C95"))
+
+    # Apply style to table
+    table.setStyle(style)
+    elements.append(table)
 
     subtitle_table_data = [[Paragraph("Personal Performance Influencers", subtitle_style)]]
     subtitle_table = Table(subtitle_table_data, colWidths=[550])
@@ -638,8 +801,9 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
 
     elements.append(subtitle_table)
 
-    header_table_data = [[Paragraph(header_data4[0], header_style), Paragraph(header_data4[1], header_style)]]
-    header_table = Table(header_table_data, colWidths=[235,315])
+    header_table_data = [[Paragraph(header_data3[0], header_style), Paragraph(header_data3[1], header_style),
+                          Paragraph(header_data3[2], header_style), Paragraph(header_data3[3], header_style)]]
+    header_table = Table(header_table_data, colWidths=[235,105,105,105])
     header_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
@@ -653,9 +817,33 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     elements.append(header_table)
 
     # Create and style the body table
-    body_table = Table(body_data_wrapped4, colWidths=[235,315])
-    body_table.setStyle(body_style)
-    elements.append(body_table)
+    table = Table(body_data_wrapped4, colWidths=[235,105,105,105])
+    style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ])
+
+    # Add colors for deltas
+    for i in range(len(body_data4)):
+        if int(body_data4[i][2]) >= 0:
+            style.add('BACKGROUND', (2, i), (2, i), colors.HexColor("#A6CF5C"))
+        else:
+            style.add('BACKGROUND', (2, i), (2, i), colors.HexColor("#DE9C95"))
+
+        if int(body_data4[i][3]) >= 0:
+            style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#A6CF5C"))
+        else:
+            style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#DE9C95"))
+
+    # Apply style to table
+    table.setStyle(style)
+    elements.append(table)
 
     # Build the PDF
     pdf.build(elements)
