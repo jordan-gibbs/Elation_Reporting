@@ -485,12 +485,12 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
         delta = subgroup_value - org_value
         delta_org_data[metric] = delta
 
-    # Calculate deltas for elation norm and store in a new dictionary
-    delta_elation_data = {}
-    for metric, elation_value in zip(metrics, elation_norm):
-        subgroup_value = float(org_total_row[metric].values[0])
-        delta = subgroup_value - elation_value
-        delta_elation_data[metric] = delta
+    # # Calculate deltas for elation norm and store in a new dictionary
+    # delta_elation_data = {}
+    # for metric, elation_value in zip(metrics, elation_norm):
+    #     subgroup_value = float(org_total_row[metric].values[0])
+    #     delta = subgroup_value - elation_value
+    #     delta_elation_data[metric] = delta
 
     # Sort the score_data by values in descending order
     sorted_score_data = sorted(score_data.items(), key=lambda item: item[1], reverse=True)
@@ -536,12 +536,12 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
         delta = subgroup_value - org_value
         delta_org_data[metric] = delta
 
-    # Calculate deltas for elation norm
-    delta_elation_data = {}
-    for metric, elation_value in zip(metrics, elation_norm):
-        subgroup_value = float(org_total_row[metric].values[0])
-        delta = subgroup_value - elation_value
-        delta_elation_data[metric] = delta
+    # # Calculate deltas for elation norm
+    # delta_elation_data = {}
+    # for metric, elation_value in zip(metrics, elation_norm):
+    #     subgroup_value = float(org_total_row[metric].values[0])
+    #     delta = subgroup_value - elation_value
+    #     delta_elation_data[metric] = delta
 
     # Sort the score_data by values in descending order
     sorted_score_data = sorted(score_data.items(), key=lambda item: item[1], reverse=True)
@@ -778,10 +778,10 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
         else:
             style.add('BACKGROUND', (2, i), (2, i), colors.HexColor("#DE9C95"))
 
-        if int(body_data3[i][3]) >= 0:
-            style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#A6CF5C"))
-        else:
-            style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#DE9C95"))
+        # if int(body_data3[i][3]) >= 0:
+        #     style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#A6CF5C"))
+        # else:
+        #     style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#DE9C95"))
 
     # Apply style to table
     table.setStyle(style)
@@ -836,10 +836,10 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
         else:
             style.add('BACKGROUND', (2, i), (2, i), colors.HexColor("#DE9C95"))
 
-        if int(body_data4[i][3]) >= 0:
-            style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#A6CF5C"))
-        else:
-            style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#DE9C95"))
+        # if int(body_data4[i][3]) >= 0:
+        #     style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#A6CF5C"))
+        # else:
+        #     style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#DE9C95"))
 
     # Apply style to table
     table.setStyle(style)
