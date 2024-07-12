@@ -44,7 +44,7 @@ def create_glossary_pdf():
     glossary_data = [
         ["Outcomes", "Definitions"],
         ["Wellbeing/Performance Potential", "This concept is grounded in the understanding that the holistic wellbeing of an employee - encompassing physical mental emotional financial social spiritual and intellectual dimensions - is the foundation of their performance potential at work. It asserts that wellbeing characterized by a balanced life low stress high motivation resilience and a profound sense of purpose is not merely about the absence of illness but is essential for an individual to flourish and achieve professional excellence. In this framework wellbeing is the precursor and key driver of an employee's capacity to perform and realize their full potential in the workplace."],
-        ["Job Satisfaction", "Job Satisfaction refers to the level of contentment or fulfilment an employee experiences at their job."],
+        ["Job Satisfaction", "Job Satisfaction refers to the level of contentment or fulfillment an employee experiences at their job."],
         ["Intent to Stay", "Intent to Stay refers to an employee's intention or desire to remain with their current job or organization for a specific period."],
         ["Job Engagement", "Job Engagement refers to the employee's level of enthusiasm commitment and involvement in their work and organization."]
     ]
@@ -497,15 +497,15 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
 
     # Create the structured data for PDF
     workplace_indicators = [
-        ["Influencers", f"{month}", "vs Organization", "vs Elation Norm"],
+        ["Influencers", f"{month}", "vs Organization"],
     ]
 
     for metric, value in sorted_score_data:
         delta_org = delta_org_data[metric]
-        delta_elation = delta_elation_data[metric]
+        # delta_elation = delta_elation_data[metric]
         delta_org_str = f"{'+' if delta_org > 0 else ''}{int(delta_org)}"
-        delta_elation_str = f"{'+' if delta_elation > 0 else ''}{int(delta_elation)}"
-        workplace_indicators.append([metric, str(int(value)), delta_org_str, delta_elation_str])
+        # delta_elation_str = f"{'+' if delta_elation > 0 else ''}{int(delta_elation)}"
+        workplace_indicators.append([metric, str(int(value)), delta_org_str])
 
     metrics = [
         'Charity',
@@ -548,15 +548,15 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
 
     # Create the structured data for PDF
     personal_indicators = [
-        ["Influencers", f"{month}", "vs Organization", "vs Elation Norm"],
+        ["Influencers", f"{month}", "vs Organization"],
     ]
 
     for metric, value in sorted_score_data:
         delta_org = delta_org_data[metric]
-        delta_elation = delta_elation_data[metric]
+        # delta_elation = delta_elation_data[metric]
         delta_org_str = f"{'+' if delta_org > 0 else ''}{int(delta_org)}"
-        delta_elation_str = f"{'+' if delta_elation > 0 else ''}{int(delta_elation)}"
-        personal_indicators.append([metric, str(int(value)), delta_org_str, delta_elation_str])
+        # delta_elation_str = f"{'+' if delta_elation > 0 else ''}{int(delta_elation)}"
+        personal_indicators.append([metric, str(int(value)), delta_org_str])
 
     # Separate header from body
     header_data = participation[0]
