@@ -744,7 +744,7 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     elements.append(subtitle_table)
 
     header_table_data = [[Paragraph(header_data3[0], header_style), Paragraph(header_data3[1], header_style),
-                          Paragraph(header_data3[2], header_style)
+                          Paragraph(header_data3[2], header_style)]]
     header_table = Table(header_table_data, colWidths=[235,105,210])
     header_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.white),
