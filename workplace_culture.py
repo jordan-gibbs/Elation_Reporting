@@ -22,7 +22,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from datetime import datetime
 import pandas as pd
-from reportlab.platypus import Table, TableStyle, Paragraph
+from reportlab.platypus import Table, TableStyle, Paragraph, PageBreak
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
@@ -786,6 +786,8 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     # Apply style to table
     table.setStyle(style)
     elements.append(table)
+    # Add a page break
+    elements.append(PageBreak())
 
     subtitle_table_data = [[Paragraph("Personal Performance Influencers", subtitle_style)]]
     subtitle_table = Table(subtitle_table_data, colWidths=[550])
