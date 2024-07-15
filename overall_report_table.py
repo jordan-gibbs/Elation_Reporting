@@ -96,6 +96,8 @@ def subgroup_table(raw_df, org_name, demo, output_df):
     # Find the relevant rows and extract their values
     metrics = ["Wellbeing/Performance Potential", "Job Satisfaction", "Job Engagement", "Intent to Stay"]
 
+    group_total = scores_df[scores_df[demographic_column].str.contains("Org Total", case=False, na=False)]
+
     score_data = {}
     for metric in metrics:
         score_data[metric] = float(org_total_row[metric].values[0])
@@ -103,7 +105,7 @@ def subgroup_table(raw_df, org_name, demo, output_df):
     # Calculate deltas for elation norm and store in a new dictionary
     delta_elation_data = {}
     for metric, elation_value in zip(metrics, elation_norm):
-        subgroup_value = float(org_total_row[metric].values[0])
+        subgroup_value = float(group_total[metric].values[0])
         delta = subgroup_value - elation_value
         delta_elation_data[metric] = delta
 
@@ -112,7 +114,7 @@ def subgroup_table(raw_df, org_name, demo, output_df):
 
     # Create the structured data for PDF
     outcomes = [
-        ["Influencers", f"{month}", "vs Organization", "vs Elation Norm"],
+        ["Influencers", f"{month}", "vs Elation Norm"],
     ]
 
     for metric, value in sorted_score_data:
