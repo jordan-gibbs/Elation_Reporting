@@ -8,7 +8,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 import tempfile
 import os
-from PIL import Image
+from PIL import Image as PILImage
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
@@ -25,9 +25,60 @@ import pandas as pd
 from reportlab.platypus import Table, TableStyle, Paragraph, PageBreak
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+from reportlab.lib.utils import ImageReader
+from reportlab.platypus import Image
+from PyPDF2 import PdfReader, PdfWriter
+from matplotlib import font_manager
+
+
+def culture_header(canvas, doc, company_name, logo_path, scale_factor=0.14):
+    font_path = "fonts/Lexend-Bold.ttf"
+    pdfmetrics.registerFont(TTFont('Lexend-Bold', font_path))
+
+    canvas.saveState()
+    image_path = 'blue.png'
+    background_image = ImageReader(image_path)
+    canvas.drawImage(background_image, 0, 0, width=letter[0], height=letter[1])
+
+    canvas.setFont('Lexend-Bold', 12)
+    canvas.setFillColor(colors.grey)
+    header_text = f"Wb^2 Report – {company_name}, ALL"
+    canvas.drawString(.42*inch, letter[1] - .6 * inch, header_text)
+
+    # Load the logo using the Image class
+    logo = Image(logo_path)
+
+    # Calculate scaled dimensions
+    scaled_width = logo.imageWidth * scale_factor
+    scaled_height = logo.imageHeight * scale_factor
+
+    # Draw the logo at the top right corner with scaling
+    logo.drawWidth = scaled_width
+    logo.drawHeight = scaled_height
+    logo.drawOn(canvas, letter[0] - scaled_width - .35 * inch, letter[1] - scaled_height - 0.4 * inch)
+
+    canvas.restoreState()
+
 
 # Function to create glossary PDF
-def create_glossary_pdf():
+def create_glossary_pdf(company_name, logo_path):
+    styles = getSampleStyleSheet()
+    normal_style = ParagraphStyle(
+        name='Normal',
+        parent=styles['Normal'],
+        fontName="Lexend",
+        fontSize=9
+    )
+
+    font_path = "fonts/Lexend-Bold.ttf"
+    pdfmetrics.registerFont(TTFont('Lexend-Bold', font_path))
+    font_path = "fonts/Lexend-Regular.ttf"
+    pdfmetrics.registerFont(TTFont('Lexend', font_path))
+    font_path = "fonts/Lexend-Thin.ttf"
+    pdfmetrics.registerFont(TTFont('Lexend-Light', font_path))
+
     # Define the PDF path
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_file:
         temp_file_path = temp_file.name
@@ -98,17 +149,19 @@ def create_glossary_pdf():
     body_data3 = glossary_data3[1:]
 
     # Wrap the body data in Paragraphs
-    body_data_wrapped = [[Paragraph(cell, styles['Normal']) for cell in row] for row in body_data]
-    body_data_wrapped2 = [[Paragraph(cell, styles['Normal']) for cell in row] for row in body_data2]
-    body_data_wrapped3 = [[Paragraph(cell, styles['Normal']) for cell in row] for row in body_data3]
+    body_data_wrapped = [[Paragraph(cell, normal_style) for cell in row] for row in body_data]
+    body_data_wrapped2 = [[Paragraph(cell, normal_style) for cell in row] for row in body_data2]
+    body_data_wrapped3 = [[Paragraph(cell, normal_style) for cell in row] for row in body_data3]
 
     # Define the body table styles
     body_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('VALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),  # Adjust padding to reduce row height
+        ('TOPPADDING', (0, 0), (-1, -1), 2),  # Adjust padding to reduce row height
     ])
 
     # Define a style for the header
@@ -116,8 +169,9 @@ def create_glossary_pdf():
         name='LeftH2',
         parent=styles['Heading2'],
         alignment=0,
-        fontSize=14,
-        textColor=colors.white
+        fontSize=9,
+        fontName="Lexend-Bold",
+        textColor=colors.black
     )
 
     # Define a style for the header
@@ -125,54 +179,63 @@ def create_glossary_pdf():
         name='LeftH2',
         parent=styles['Heading1'],
         alignment=1,
-        fontSize=14,
-        textColor=colors.white
+        fontSize=20,
+        valign="TOP",
+        fontName="Lexend-Bold",
+        textColor=colors.black
     )
 
     title_table_data = [[Paragraph("Glossary", title_style)]]
     title_table = Table(title_table_data, colWidths=[550])
     title_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.gray),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
     ]))
 
     elements.append(title_table)
+    elements.append(Spacer(1, 0.2 * inch))
 
     # Create and add the header as a table to control spacing
     header_table_data = [[Paragraph(header_data[0], header_style), Paragraph(header_data[1], header_style)]]
     header_table = Table(header_table_data, colWidths=[180, 370])
     header_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.darkgrey),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
 
     elements.append(header_table)
 
     # Create and style the body table
     body_table = Table(body_data_wrapped, colWidths=[180, 370])
-    body_table.setStyle(body_style)
+    body_table.setStyle(TableStyle([
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+    ]))
     elements.append(body_table)
 
     header_table_data = [[Paragraph(header_data2[0], header_style), Paragraph(header_data2[1], header_style)]]
     header_table = Table(header_table_data, colWidths=[180, 370])
     header_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.darkgrey),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
     elements.append(header_table)
 
@@ -184,13 +247,13 @@ def create_glossary_pdf():
     header_table_data = [[Paragraph(header_data3[0], header_style), Paragraph(header_data3[1], header_style)]]
     header_table = Table(header_table_data, colWidths=[180, 370])
     header_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.darkgrey),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
     elements.append(header_table)
 
@@ -199,16 +262,29 @@ def create_glossary_pdf():
     body_table.setStyle(body_style)
     elements.append(body_table)
 
-    # Build the PDF
-    pdf.build(elements)
+    # Build the PDF with headers
+    pdf.build(elements, onFirstPage=lambda c, d: culture_header(c, d, company_name, logo_path),
+              onLaterPages=lambda c, d: culture_header(c, d, company_name, logo_path))
 
-    with open(pdf_path, 'rb') as pdf_file:
+    with open(temp_file_path, 'rb') as pdf_file:
         pdf_data = pdf_file.read()
 
     return pdf_data
 
 # Function to create culture report
-def create_culture_report(subgroup, subgroup_value, data):
+def create_culture_report_with_header(subgroup, subgroup_value, data, company_name, logo_path):
+
+    # Create a PDF buffer
+    pdf_buf = BytesIO()
+
+    # Define the PDF path
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_file:
+        temp_file_path = temp_file.name
+
+    pdf = SimpleDocTemplate(pdf_buf, pagesize=letter)
+    elements = []
+
+    # Your PDF content generation logic
     # Convert the data to a DataFrame if it's not already
     data = pd.DataFrame(data)
 
@@ -242,6 +318,8 @@ def create_culture_report(subgroup, subgroup_value, data):
     colorz = ['#F24837', '#FC8F3E', '#FCCE48', '#C8DA51', '#5FBE78']
     categories = ['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree']
 
+    # plt.rcParams['font.family'] = 'Lexend-Regular'
+
     fig, ax = plt.subplots(figsize=(14, 8))  # Increase figure width for wider labels
 
     # Plotting the data
@@ -257,11 +335,11 @@ def create_culture_report(subgroup, subgroup_value, data):
 
     # Wrap y-tick labels and hide y-ticks
     wrap_width = 30  # Set your desired wrap width here
-    ax.set_yticklabels([textwrap.fill(label, wrap_width) for label in columns_of_interest], fontsize=14)
+    ax.set_yticklabels([textwrap.fill(label, wrap_width) for label in columns_of_interest], fontsize=14, fontname='Lexend')
     ax.yaxis.set_ticks_position('none')
 
     # Customizing the plot to match the desired style
-    ax.legend(bbox_to_anchor=(0.5, 0), loc='upper center', ncol=5, frameon=False, prop={'size': 12})
+    ax.legend(bbox_to_anchor=(0.5, 0), loc='upper center', ncol=5, frameon=False, prop={'size': 14})
     ax.set_xlim(0, 100)
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(True)
@@ -274,75 +352,65 @@ def create_culture_report(subgroup, subgroup_value, data):
     plt.subplots_adjust(left=0.3)  # Adjust the left margin to provide more space for y-axis labels
 
     # Save the plot to a temporary file
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
-    plt.savefig(temp_file.name, format='png', dpi=300)
-    temp_file.close()
+    temp_img_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+    plt.savefig(temp_img_file.name, format='png', dpi=300, transparent=True)
+    temp_img_file.close()
 
-    # Create a PDF and embed the plot
-    pdf_buf = BytesIO()
-    c = canvas.Canvas(pdf_buf, pagesize=letter)
-    width, height = letter
-
-    # Get the dimensions of the image
-    with Image.open(temp_file.name) as img:
-        img_width, img_height = img.size
-
-    # Calculate the dimensions to maintain the aspect ratio
-    aspect = img_width / img_height
-    new_width = width
-    new_height = width / aspect
-
-    # Ensure the image fits within the page
-    if new_height > height:
-        new_height = height
-        new_width = height * aspect
-
+    # Additional PDF content generation logic
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         name='LeftH2',
         parent=styles['Heading1'],
         alignment=1,
-        fontSize=14,
-        textColor=colors.white
+        fontSize=20,
+        textColor=colors.black
     )
 
     # Create the table data
     title_table_data = [[Paragraph("Summary", title_style)]]
-    title_table = Table(title_table_data, colWidths=[width])
+    title_table = Table(title_table_data, colWidths=[550])
     title_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.gray),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
     ]))
 
-    # Calculate the position for the image to be below the table
-    table_height = 20  # approximate height of the table
-    img_y_position = height - new_height - table_height - 50
+    elements.append(title_table)
+    # Add the plot image to the PDF elements
+    elements.append(Image(temp_img_file.name, width=letter[0] * 0.93, height=letter[1] * 0.4))
+    elements.append(Spacer(1, 12))
+    elements.append(PageBreak())
 
-    # Draw the table on the PDF
-    title_table.wrapOn(c, width, table_height)
-    title_table.drawOn(c, 0, img_y_position + new_height)
+    # Build the PDF with headers
+    pdf.build(elements, onFirstPage=lambda c, d: culture_header(c, d, company_name, logo_path),
+              onLaterPages=lambda c, d: culture_header(c, d, company_name, logo_path))
 
-    # Draw the image on the PDF below the table
-    img = ImageReader(temp_file.name)
-    c.drawImage(img, 0, img_y_position, width=new_width * 0.95,
-                height=new_height * 0.95)  # Adjust dimensions to maintain aspect ratio
-
-    c.showPage()
-    c.save()
     pdf_buf.seek(0)
 
     # Clean up the temporary file
-    os.unlink(temp_file.name)
+    os.unlink(temp_img_file.name)
 
     return pdf_buf
 
 
-def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
+def subgroup_table(raw_df, org_name, subgroup, output_df, demo, company_name, logo_path):
+    styles = getSampleStyleSheet()
+    normal_style = ParagraphStyle(
+        name='Normal',
+        parent=styles['Normal'],
+        fontName="Lexend",
+        fontSize=9
+    )
+
+    font_path = "fonts/Lexend-Bold.ttf"
+    pdfmetrics.registerFont(TTFont('Lexend-Bold', font_path))
+    font_path = "fonts/Lexend-Regular.ttf"
+    pdfmetrics.registerFont(TTFont('Lexend', font_path))
+    font_path = "fonts/Lexend-Thin.ttf"
+    pdfmetrics.registerFont(TTFont('Lexend-Light', font_path))
+
     raw_df['reportedAt'] = pd.to_datetime(raw_df['reportedAt'])
     latest_time = raw_df['reportedAt'].max()
     month = latest_time.strftime('%b %Y')
@@ -570,20 +638,40 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     body_data4 = personal_indicators[1:]
 
     # Wrap the body data in Paragraphs
-    body_data_wrapped = [[Paragraph(cell, styles['Normal']) for cell in row] for row in body_data]
-    body_data_wrapped2 = [[Paragraph(cell, styles['Normal']) for cell in row] for row in body_data2]
-    body_data_wrapped3 = [[Paragraph(cell, styles['Normal']) for cell in row] for row in body_data3]
-    body_data_wrapped4 = [[Paragraph(cell, styles['Normal']) for cell in row] for row in body_data4]
+    body_data_wrapped = [[Paragraph(cell, normal_style) for cell in row] for row in body_data]
+    body_data_wrapped2 = [[Paragraph(cell, normal_style) for cell in row] for row in body_data2]
+    body_data_wrapped3 = [[Paragraph(cell, normal_style) for cell in row] for row in body_data3]
+    body_data_wrapped4 = [[Paragraph(cell, normal_style) for cell in row] for row in body_data4]
 
     # Define the body table styles
     body_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),  # Adjust padding to reduce row height
         ('TOPPADDING', (0, 0), (-1, -1), 2),  # Adjust padding to reduce row height
+    ])
+
+    nogrid_style = TableStyle([
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),  # Adjust padding to reduce row height
+        ('TOPPADDING', (0, 0), (-1, -1), 2),  # Adjust padding to reduce row height
+        # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+    ])
+
+    nogrid_style_bold = TableStyle([
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),  # Adjust padding to reduce row height
+        ('TOPPADDING', (0, 0), (-1, -1), 2),  # Adjust padding to reduce row height
+        # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ])
 
     # Define a style for the header
@@ -591,7 +679,8 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
         name='LeftH2',
         parent=styles['Heading2'],
         alignment=0,
-        fontSize=10,
+        fontSize=9,
+        fontName="Lexend-Bold",
         textColor=colors.black
     )
 
@@ -600,8 +689,10 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
         name='LeftH2',
         parent=styles['Heading1'],
         alignment=1,
-        fontSize=14,
-        textColor=colors.white
+        fontSize=20,
+        valign="TOP",
+        fontName="Lexend-Bold",
+        textColor=colors.black
     )
 
     # Define a style for the header
@@ -610,15 +701,14 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
         parent=styles['Heading1'],
         alignment=1,
         fontSize=14,
-        textColor=colors.white
+        fontName="Lexend-Bold",
+        textColor=colors.black
     )
 
     title_table_data = [[Paragraph(f"{subgroup}", title_style)]]
     title_table = Table(title_table_data, colWidths=[550])
     title_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.gray),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
@@ -626,22 +716,25 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     ]))
 
     elements.append(title_table)
+    elements.append(Spacer(1, 0.2 * inch))
 
     # Create and style the body table
     body_table = Table(org_date, colWidths=[130,420])
     body_table.setStyle(body_style)
     elements.append(body_table)
+    elements.append(Spacer(1, 0.1 * inch))
 
     subtitle_table_data = [[Paragraph("Participation", subtitle_style)]]
     subtitle_table = Table(subtitle_table_data, colWidths=[550])
     subtitle_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.darkgray),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.black),
+        # ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
+        # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
 
     elements.append(subtitle_table)
@@ -652,14 +745,14 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
                           Paragraph(header_data[4], header_style)]]
     header_table = Table(header_table_data, colWidths=[130,105,105,105,105])
     header_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
 
     elements.append(header_table)
@@ -668,17 +761,19 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     body_table = Table(body_data_wrapped, colWidths=[130,105,105,105,105])
     body_table.setStyle(body_style)
     elements.append(body_table)
+    elements.append(Spacer(1, 0.1 * inch))
 
     subtitle_table_data = [[Paragraph("Outcomes", subtitle_style)]]
     subtitle_table = Table(subtitle_table_data, colWidths=[550])
     subtitle_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.darkgray),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.black),
+        # ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
+        # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
 
     elements.append(subtitle_table)
@@ -688,14 +783,14 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
                           Paragraph(header_data2[2], header_style), Paragraph(header_data2[3], header_style)]]
     header_table = Table(header_table_data, colWidths=[235,105,105,105])
     header_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
 
     elements.append(header_table)
@@ -703,13 +798,13 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     # Create and style the body table
     table = Table(body_data_wrapped2, colWidths=[235,105,105,105])
     style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+        # ('BACKGROUND', (0, 0), (-1, 0), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 12),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        # ('BACKGROUND', (0, 1), (-1, -1), colors.white),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
     ])
 
@@ -728,17 +823,19 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     # Apply style to table
     table.setStyle(style)
     elements.append(table)
+    elements.append(Spacer(1, 0.1 * inch))
 
     subtitle_table_data = [[Paragraph("Workplace Performance Influencers", subtitle_style)]]
     subtitle_table = Table(subtitle_table_data, colWidths=[550])
     subtitle_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.darkgray),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.black),
+        # ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
+        # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
 
     elements.append(subtitle_table)
@@ -747,27 +844,27 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
                           Paragraph(header_data3[2], header_style)]]
     header_table = Table(header_table_data, colWidths=[235,105,210])
     header_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
     elements.append(header_table)
 
     # Create and style the body table
     table = Table(body_data_wrapped3, colWidths=[235,105,210])
     style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+        # ('BACKGROUND', (0, 0), (-1, 0), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 12),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        # ('BACKGROUND', (0, 1), (-1, -1), colors.white),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
     ])
 
@@ -792,14 +889,16 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     subtitle_table_data = [[Paragraph("Personal Performance Influencers", subtitle_style)]]
     subtitle_table = Table(subtitle_table_data, colWidths=[550])
     subtitle_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.darkgray),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.black),
+        # ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('VALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
+        # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
+
 
     elements.append(subtitle_table)
 
@@ -807,27 +906,27 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
                           Paragraph(header_data3[2], header_style)]]
     header_table = Table(header_table_data, colWidths=[235,105,210])
     header_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
     elements.append(header_table)
 
     # Create and style the body table
     table = Table(body_data_wrapped4, colWidths=[235,105,210])
     style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+        # ('BACKGROUND', (0, 0), (-1, 0), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 12),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        # ('BACKGROUND', (0, 1), (-1, -1), colors.white),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
     ])
 
@@ -847,8 +946,9 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
     table.setStyle(style)
     elements.append(table)
 
-    # Build the PDF
-    pdf.build(elements)
+    # Build the PDF with headers
+    pdf.build(elements, onFirstPage=lambda c, d: culture_header(c, d, company_name, logo_path),
+              onLaterPages=lambda c, d: culture_header(c, d, company_name, logo_path))
 
     with open(pdf_path, 'rb') as pdf_file:
         pdf_data = pdf_file.read()
@@ -857,10 +957,7 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo):
 
 
 # Function to merge glossary and culture report into one PDF
-def merge_pdfs(glossary_pdf_bytes, culture_report_pdf_bytes, table_pdf_bytes):
-    from PyPDF2 import PdfReader, PdfWriter
-    from io import BytesIO
-
+def merge_pdfs(glossary_pdf_bytes, culture_report_pdf_bytes, table_pdf_bytes, company_name, logo_path):
     merged_pdf = PdfWriter()
 
     # Read table PDF and add it first
@@ -878,8 +975,10 @@ def merge_pdfs(glossary_pdf_bytes, culture_report_pdf_bytes, table_pdf_bytes):
     for page in range(len(culture_report_reader.pages)):
         merged_pdf.add_page(culture_report_reader.pages[page])
 
+
     merged_pdf_bytes = BytesIO()
     merged_pdf.write(merged_pdf_bytes)
     merged_pdf_bytes.seek(0)
 
     return merged_pdf_bytes
+
