@@ -5,12 +5,28 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from datetime import datetime
 import pandas as pd
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
 
 
 def subgroup_table(raw_df, org_name, demo, output_df):
+    font_path = "fonts/Lexend-Bold.ttf"
+    pdfmetrics.registerFont(TTFont('Lexend-Bold', font_path))
+    font_path = "fonts/Lexend-Regular.ttf"
+    pdfmetrics.registerFont(TTFont('Lexend', font_path))
+    font_path = "fonts/Lexend-Thin.ttf"
+    pdfmetrics.registerFont(TTFont('Lexend-Light', font_path))
     raw_df['reportedAt'] = pd.to_datetime(raw_df['reportedAt'])
     latest_time = raw_df['reportedAt'].max()
     month = latest_time.strftime('%b %Y')
+
+    styles = getSampleStyleSheet()
+    normal_style = ParagraphStyle(
+        name='Normal',
+        parent=styles['Normal'],
+        fontName="Lexend",
+        fontSize=9
+    )
 
     first_sheet_name = list(output_df.keys())[0]
     scores_df = output_df[first_sheet_name]
@@ -234,14 +250,14 @@ def subgroup_table(raw_df, org_name, demo, output_df):
     body_data2 = outcomes[1:]
 
     # Wrap the body data in Paragraphs
-    body_data_wrapped = [[Paragraph(cell, styles['Normal']) for cell in row] for row in body_data]
-    body_data_wrapped2 = [[Paragraph(cell, styles['Normal']) for cell in row] for row in body_data2]
+    body_data_wrapped = [[Paragraph(cell, normal_style) for cell in row] for row in body_data]
+    body_data_wrapped2 = [[Paragraph(cell, normal_style) for cell in row] for row in body_data2]
 
     # Define the body table styles
     body_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),  # Adjust padding to reduce row height
@@ -249,21 +265,23 @@ def subgroup_table(raw_df, org_name, demo, output_df):
     ])
 
     nogrid_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),  # Adjust padding to reduce row height
         ('TOPPADDING', (0, 0), (-1, -1), 2),  # Adjust padding to reduce row height
+        # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ])
 
     nogrid_style_bold = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 12),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),  # Adjust padding to reduce row height
         ('TOPPADDING', (0, 0), (-1, -1), 2),  # Adjust padding to reduce row height
+        # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ])
 
     # Define a style for the header
@@ -271,7 +289,8 @@ def subgroup_table(raw_df, org_name, demo, output_df):
         name='LeftH2',
         parent=styles['Heading2'],
         alignment=0,
-        fontSize=10,
+        fontSize=9,
+        fontName="Lexend-Bold",
         textColor=colors.black
     )
 
@@ -280,8 +299,10 @@ def subgroup_table(raw_df, org_name, demo, output_df):
         name='LeftH2',
         parent=styles['Heading1'],
         alignment=1,
-        fontSize=14,
-        textColor=colors.white
+        fontSize=20,
+        valign="TOP",
+        fontName="Lexend-Bold",
+        textColor=colors.black
     )
 
     # Define a style for the header
@@ -290,38 +311,43 @@ def subgroup_table(raw_df, org_name, demo, output_df):
         parent=styles['Heading1'],
         alignment=1,
         fontSize=14,
-        textColor=colors.white
+        fontName="Lexend-Bold",
+        textColor=colors.black
     )
 
     title_table_data = [[Paragraph(f"Summary", title_style)]]
     title_table = Table(title_table_data, colWidths=[550])
     title_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.gray),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.gray),
+        # ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
+        # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
 
     elements.append(title_table)
+    elements.append(Spacer(1, 0.2 * inch))
 
     # Create and style the body table
     body_table = Table(org_date, colWidths=[130,420])
     body_table.setStyle(body_style)
     elements.append(body_table)
+    elements.append(Spacer(1, 0.2 * inch))
 
     subtitle_table_data = [[Paragraph("Participation", subtitle_style)]]
     subtitle_table = Table(subtitle_table_data, colWidths=[550])
     subtitle_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.darkgray),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.black),
+        # ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
+        # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
 
     elements.append(subtitle_table)
@@ -332,14 +358,14 @@ def subgroup_table(raw_df, org_name, demo, output_df):
                           Paragraph(header_data[4], header_style)]]
     header_table = Table(header_table_data, colWidths=[130,105,105,105,105])
     header_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
 
     elements.append(header_table)
@@ -349,31 +375,35 @@ def subgroup_table(raw_df, org_name, demo, output_df):
     body_table.setStyle(body_style)
     elements.append(body_table)
 
+    elements.append(Spacer(1, 0.2 * inch))
+
     subtitle_table_data = [[Paragraph("Outcomes", subtitle_style)]]
     subtitle_table = Table(subtitle_table_data, colWidths=[550])
     subtitle_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.darkgray),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.black),
+        # ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
+        # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
 
     elements.append(subtitle_table)
+
 
     # Create and add the header as a table to control spacing
     header_table_data = [[Paragraph(header_data2[0], header_style), Paragraph(header_data2[1], header_style), Paragraph(header_data2[2], header_style),]]
     header_table = Table(header_table_data, colWidths=[235,105,210])
     header_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
     ]))
 
@@ -381,14 +411,13 @@ def subgroup_table(raw_df, org_name, demo, output_df):
 
     table = Table(body_data_wrapped2, colWidths=[235,105,210])
     style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+        # ('BACKGROUND', (0, 0), (-1, 0), colors.white),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 12),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ])
     # Create and style the body table
     # Add colors for deltas
@@ -414,25 +443,26 @@ def subgroup_table(raw_df, org_name, demo, output_df):
     subtitle_table_data = [[Paragraph("Assessment Highlights", subtitle_style)]]
     subtitle_table = Table(subtitle_table_data, colWidths=[550])
     subtitle_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.darkgray),
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.black),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
+        # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
 
     elements.append(Spacer(1, 0.2 * inch))
     elements.append(subtitle_table)
 
-    assessment_highlight = [[Paragraph(cell, styles['Normal']) for cell in row] for row in assessment_highlight]
+    assessment_highlight = [[Paragraph(cell, normal_style) for cell in row] for row in assessment_highlight]
     body_table = Table(assessment_highlight, colWidths=[550])
     body_table.setStyle(nogrid_style)
     elements.append(body_table)
 
     assessment_highlight2 = [[f"{low_demo} with a score of {str(lowest_score)} had the lowest overall wellbeing and performance potential score of the subgroups."]]
-    assessment_highlight2 = [[Paragraph(cell, styles['Normal']) for cell in row] for row in assessment_highlight2]
+    assessment_highlight2 = [[Paragraph(cell, normal_style) for cell in row] for row in assessment_highlight2]
     body_table = Table(assessment_highlight2, colWidths=[550])
     body_table.setStyle(nogrid_style)
     elements.append(Spacer(1, 0.2 * inch))
@@ -447,7 +477,7 @@ def subgroup_table(raw_df, org_name, demo, output_df):
 
     # Get a sample style for the PDF
     styles = getSampleStyleSheet()
-    style = styles['Normal']
+    style = normal_style
 
     # Create the table data
     assessment_highlight = [[Paragraph(desc, style)] for desc in descriptions]
@@ -456,7 +486,7 @@ def subgroup_table(raw_df, org_name, demo, output_df):
     nogrid_style = TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Light'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('LEFTPADDING', (0, 0), (-1, -1), 12),
         ('RIGHTPADDING', (0, 0), (-1, -1), 12),
