@@ -4,7 +4,7 @@ import pandas as pd
 from report_data_parse import create_xlsx_report
 import doc_creator3
 import tempfile
-from workplace_culture import create_culture_report, create_glossary_pdf, subgroup_table, merge_pdfs
+from workplace_culture import create_culture_report_with_header, create_glossary_pdf, subgroup_table, merge_pdfs
 from Data_Reliability import calculate_response_reliability_index, calculate_statistical_deviation_score
 
 if 'demo' not in st.session_state:
@@ -247,15 +247,15 @@ if demographics_file and raw_data_file:
                 if st.session_state['subgroup']:
                     subgroup = st.session_state['subgroup']
                     # Generate glossary PDF
-                    glossary_pdf = create_glossary_pdf()
+                    glossary_pdf = create_glossary_pdf(org,logo_path)
 
                     # Generate culture report PDF
-                    buf = create_culture_report(demo, subgroup, final_df)
+                    buf = create_culture_report_with_header(demo, subgroup, final_df,org,logo_path)
                     output_df = pd.read_excel(tmp_path, sheet_name=None)
-                    buf2 = subgroup_table(raw_data_df, org, subgroup, output_df, demo)
+                    buf2 = subgroup_table(raw_data_df, org, subgroup, output_df, demo,org,logo_path)
 
                     # Merge PDFs
-                    combined_pdf = merge_pdfs(buf.getvalue(), glossary_pdf, buf2)
+                    combined_pdf = merge_pdfs(buf.getvalue(), glossary_pdf, buf2, org, logo_path)
 
                     # Provide a download button for the combined PDF
                     st.download_button(
