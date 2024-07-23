@@ -164,47 +164,47 @@ def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_n
 
             elements.append(Spacer(1, 12))
 
-
     for _, row in top_5_merged.iterrows():
-        group_name = row[common_column]
-        completed = row['completed_members']
-        total = row['total_members']
-        completion_rate = row['completion_rate']
+        if row['completed_members'] >= 5:
+            group_name = row[common_column]
+            completed = row['completed_members']
+            total = row['total_members']
+            completion_rate = row['completion_rate']
 
-        section_title = f"{group_name} – {completed} of {total}, {completion_rate}"
-        elements.append(Paragraph(section_title, subtitle_style))
-        elements.append(Spacer(1, 12))
+            section_title = f"{group_name} – {completed} of {total} ({completion_rate})"
+            elements.append(Paragraph(section_title, subtitle_style))
+            elements.append(Spacer(1, 12))
 
-        # Calculate the dynamic cutoff value
-        dynamic_cutoff = calculate_dynamic_cutoff(row) + 3
+            # Calculate the dynamic cutoff value
+            dynamic_cutoff = calculate_dynamic_cutoff(row) + 3
 
-        # Extract and sort influencers
-        lowest_inf = row['Lowest Influencer'].split(':')
-        second_lowest_inf = row['Second Lowest Influencer'].split(':')
+            # Extract and sort influencers
+            lowest_inf = row['Lowest Influencer'].split(':')
+            second_lowest_inf = row['Second Lowest Influencer'].split(':')
 
-        # Create a list of influencers
-        influencers = [
-            (lowest_inf[0], lowest_inf[1]),
-            (second_lowest_inf[0], second_lowest_inf[1])
-        ]
+            # Create a list of influencers
+            influencers = [
+                (lowest_inf[0], lowest_inf[1]),
+                (second_lowest_inf[0], second_lowest_inf[1])
+            ]
 
-        # Retrieve additional lowest influencers if available
-        additional_influencers = []
-        if 'Third Lowest Influencer' in row:
-            third_lowest_inf = row['Third Lowest Influencer'].split(':')
-            additional_influencers.append((third_lowest_inf[0], third_lowest_inf[1]))
+            # Retrieve additional lowest influencers if available
+            additional_influencers = []
+            if 'Third Lowest Influencer' in row:
+                third_lowest_inf = row['Third Lowest Influencer'].split(':')
+                additional_influencers.append((third_lowest_inf[0], third_lowest_inf[1]))
 
-        # Merge all influencers and sort by their scores
-        all_influencers = influencers + additional_influencers
-        all_influencers.sort(key=lambda x: float(x[1]))
+            # Merge all influencers and sort by their scores
+            all_influencers = influencers + additional_influencers
+            all_influencers.sort(key=lambda x: float(x[1]))
 
-        # Limit to a maximum of 3 influencers but at least 1
-        num_to_print = min(max(len(all_influencers), 1), 3)
+            # Limit to a maximum of 3 influencers but at least 1
+            num_to_print = min(max(len(all_influencers), 1), 3)
 
-        for i in range(num_to_print):
-            add_influencer(all_influencers[i], large_bold_style, dynamic_cutoff)
+            for i in range(num_to_print):
+                add_influencer(all_influencers[i], large_bold_style, dynamic_cutoff)
 
-        elements.append(Spacer(1, 12))
+            elements.append(Spacer(1, 12))
 
     additional_recommendations = Paragraph(
         "Additional recommendations for each Influencer are listed on the <b>Read More</b> pages within the visualization platform.",
