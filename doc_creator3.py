@@ -19,8 +19,7 @@ from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Image
 
 
-def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_name, logo_path, raw_df, demo):
-
+def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_name, logo_path, raw_df, demo, final_df):
     font_path = "fonts/Lexend-Bold.ttf"
     pdfmetrics.registerFont(TTFont('Lexend-Bold', font_path))
     font_path = "fonts/Lexend-Regular.ttf"
@@ -85,7 +84,8 @@ def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_n
     # Add subgroup table elements
     output_df = pd.read_excel(excel_file, sheet_name=None)
     demo2 = "Org Total"
-    subgroup_elements = subgroup_table(raw_df, company_name, demo2, output_df)
+
+    subgroup_elements = subgroup_table(raw_df, company_name, demo2, output_df, final_df)
     elements.extend(subgroup_elements)
 
     body_style = normal_style
@@ -214,6 +214,7 @@ def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_n
     # Build the PDF
     doc.build(elements, onFirstPage=lambda canvas, doc: header(canvas, doc, company_name, logo_path),
               onLaterPages=lambda canvas, doc: header(canvas, doc, company_name, logo_path))
+
 
 def header(canvas, doc, company_name, logo_path, scale_factor=0.14):
     font_path = "fonts/Lexend-Bold.ttf"
