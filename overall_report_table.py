@@ -7,9 +7,12 @@ from datetime import datetime
 import pandas as pd
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
+from Data_Reliability import create_reliability_report
+from reportlab.platypus import Image
+import os
 
 
-def subgroup_table(raw_df, org_name, demo, output_df):
+def subgroup_table(raw_df, org_name, demo, output_df, final_df):
     font_path = "fonts/Lexend-Bold.ttf"
     pdfmetrics.registerFont(TTFont('Lexend-Bold', font_path))
     font_path = "fonts/Lexend-Regular.ttf"
@@ -430,6 +433,32 @@ def subgroup_table(raw_df, org_name, demo, output_df):
     # Apply style to table
     table.setStyle(style)
     elements.append(table)
+    elements.append(Spacer(1, 0.2 * inch))
+
+    subtitle_table_data = [[Paragraph(f"Data Validity", subtitle_style)]]
+    subtitle_table = Table(subtitle_table_data, colWidths=[550])
+    subtitle_table.setStyle(TableStyle([
+        # ('BACKGROUND', (0, 0), (-1, -1), colors.black),
+        # ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Lexend-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+    ]))
+
+    elements.append(subtitle_table)
+
+    reliability_image = create_reliability_report(final_df, total_members)
+
+    if reliability_image:
+        img = Image(reliability_image)
+        img.drawHeight = 1.4 * inch  # Adjust height as necessary
+        img.drawWidth = 7.8 * inch  # Adjust width as necessary
+        elements.append(img)
+        elements.append(Spacer(1, 0.2 * inch))
+
 
     if bad_scores == 0:
         assessment_highlight = [["For the OVERALL group, there were 0 influencers scoring lower than " \
@@ -453,7 +482,6 @@ def subgroup_table(raw_df, org_name, demo, output_df):
         # ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
 
-    elements.append(Spacer(1, 0.2 * inch))
     elements.append(subtitle_table)
 
     assessment_highlight = [[Paragraph(cell, normal_style) for cell in row] for row in assessment_highlight]
