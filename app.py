@@ -5,7 +5,7 @@ from report_data_parse import create_xlsx_report
 import doc_creator3
 import tempfile
 from workplace_culture import create_culture_report_with_header, create_glossary_pdf, subgroup_table, merge_pdfs
-from Data_Reliability import calculate_response_reliability_index, calculate_statistical_deviation_score
+from Data_Reliability import calculate_response_reliability_index, calculate_statistical_deviation_score, create_reliability_report
 
 if 'demo' not in st.session_state:
     st.session_state['demo'] = None
@@ -144,18 +144,22 @@ if demographics_file and raw_data_file:
     raw_data_df = calculate_statistical_deviation_score(raw_data_df)
 
     # Append the new columns to final_df
-    final_df = final_df.merge(raw_data_df[['userId', 'Response Reliability Index', 'Social Desirability Score', 'Absolute Z-score', 'Above 95% threshold']],
+    final_df = final_df.merge(raw_data_df[['userId', 'Response Reliability Index', 'Social Desirability Score', 'Absolute Z-score', 'Z-score Anomaly Count', 'Above 95% threshold']],
                               on='userId', how='left')
 
     final_df['Valid Response'] = np.where(
-        ((final_df['Response Reliability Index'] <= 6).astype(int) +
-         (final_df['Social Desirability Score'] <= 50).astype(int) +
-         (final_df['Above 95% threshold'] == 'Yes').astype(int)) >= 2,
+        ((final_df['Response Reliability Index'] <= 6).astype(float) +
+         ((final_df['Response Reliability Index'] > 6) & (final_df['Response Reliability Index'] <= 7)).astype(
+             float) * 0.5 +
+         (final_df['Social Desirability Score'] <= 50).astype(float) +
+         ((final_df['Social Desirability Score'] > 50) & (final_df['Social Desirability Score'] <= 65)).astype(
+             float) * 0.5 +
+         (final_df['Above 95% threshold'] == 'Yes').astype(float)) * 1.5 >= 2,
         'No', 'Yes'
     )
 
     # Round all values to the nearest whole number
-    final_df = final_df.round()
+    final_df = final_df.round(2)
 
     # Download link for the final dataframe
     csv = final_df.to_csv(index=False).encode('utf-8')
@@ -213,7 +217,8 @@ if demographics_file and raw_data_file:
                 # Generate the PDF report
                 pdf_path = f"{org}_report.pdf"
                 logo_path = "elation_logo.png"  # Update this path to where your logo file is located
-                doc_creator3.create_pdf_with_header_and_recommendations(tmp_path, pdf_path, org, logo_path, raw_data_df, demo)
+                doc_creator3.create_pdf_with_header_and_recommendations(tmp_path, pdf_path, org, logo_path, raw_data_df,
+                                                                        demo, final_df)
 
                 col1, col2 = st.columns(2)
 
@@ -252,6 +257,7 @@ if demographics_file and raw_data_file:
                     # Generate culture report PDF
                     buf = create_culture_report_with_header(demo, subgroup, final_df,org,logo_path)
                     output_df = pd.read_excel(tmp_path, sheet_name=None)
+                    completed_members = len(demographics_df)
                     buf2 = subgroup_table(raw_data_df, org, subgroup, output_df, demo,org,logo_path)
 
                     # Merge PDFs
