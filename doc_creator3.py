@@ -85,7 +85,7 @@ def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_n
     output_df = pd.read_excel(excel_file, sheet_name=None)
     demo2 = "Org Total"
 
-    subgroup_elements = subgroup_table(raw_df, company_name, demo2, output_df, final_df)
+    subgroup_elements = subgroup_table(raw_df, company_name, demo2, output_df, final_df, excel_file)
     elements.extend(subgroup_elements)
 
     body_style = normal_style
@@ -126,7 +126,7 @@ def create_pdf_with_header_and_recommendations(excel_file, output_pdf, company_n
     # Sort the merged DataFrame by 'Demographic Size' in descending order and select the top 5
     top_5_merged = merged_df.sort_values(by='Demographic Size', ascending=False).head(5)
 
-    print(top_5_merged)
+    # print(top_5_merged)
 
     descriptions_df = pd.read_csv('CSVs/descriptions.csv')
 
