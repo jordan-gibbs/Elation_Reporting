@@ -31,6 +31,7 @@ from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Image
 from PyPDF2 import PdfReader, PdfWriter
 from matplotlib import font_manager
+from reportlab.platypus import Flowable
 
 
 def culture_header(canvas, doc, company_name, logo_path, scale_factor=0.14):
@@ -281,7 +282,14 @@ def create_culture_report_with_header(subgroup, subgroup_value, data, company_na
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_file:
         temp_file_path = temp_file.name
 
-    pdf = SimpleDocTemplate(pdf_buf, pagesize=letter)
+    pdf = SimpleDocTemplate(
+        pdf_buf,
+        pagesize=letter,
+        rightMargin=0.35 * inch,
+        leftMargin=0.35 * inch,
+        topMargin=0.75 * inch,
+        bottomMargin=0.75 * inch
+    )
     elements = []
 
     # Your PDF content generation logic
@@ -395,7 +403,7 @@ def create_culture_report_with_header(subgroup, subgroup_value, data, company_na
     return pdf_buf
 
 
-def subgroup_table(raw_df, org_name, subgroup, output_df, demo, company_name, logo_path):
+def subgroup_table(raw_df, org_name, subgroup, output_df, demo, company_name, logo_path, excel_file):
     styles = getSampleStyleSheet()
     normal_style = ParagraphStyle(
         name='Normal',
@@ -419,7 +427,14 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo, company_name, lo
 
     # Define the PDF path
     pdf_path = temp_file_path
-    pdf = SimpleDocTemplate(pdf_path, pagesize=letter)
+    pdf = SimpleDocTemplate(
+        pdf_path,
+        pagesize=letter,
+        rightMargin=0.35 * inch,
+        leftMargin=0.35 * inch,
+        topMargin=0.75 * inch,
+        bottomMargin=0.75 * inch
+    )
     elements = []
 
     first_sheet_name = f"Avg. Scores for {demo}"
@@ -937,14 +952,137 @@ def subgroup_table(raw_df, org_name, subgroup, output_df, demo, company_name, lo
         else:
             style.add('BACKGROUND', (2, i), (2, i), colors.HexColor("#DE9C95"))
 
-        # if int(body_data4[i][3]) >= 0:
-        #     style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#A6CF5C"))
-        # else:
-        #     style.add('BACKGROUND', (3, i), (3, i), colors.HexColor("#DE9C95"))
-
     # Apply style to table
     table.setStyle(style)
     elements.append(table)
+
+    # Define a style for the header
+    subtitle_style = ParagraphStyle(
+        name='LeftH2',
+        parent=styles['Heading1'],
+        alignment=0,
+        fontSize=14,
+        fontName="Lexend-Bold",
+        textColor=colors.black
+    )
+
+
+    class HorizontalLine(Flowable):
+        def __init__(self, width):
+            super().__init__()
+            self.width = width
+
+        def draw(self):
+            self.canv.line((self.canv._pagesize[0] - self.width) / 2, 0, (self.canv._pagesize[0] + self.width) / 2, 0)
+
+    def add_horizontal_line(elements, width=1000):
+        elements.append(Spacer(1, 24))
+        elements.append(HorizontalLine(width))
+        elements.append(Spacer(1, 24))
+
+    add_horizontal_line(elements)
+
+    elements.append(Paragraph("Recommendations", title_style))
+
+    # Ensure you have a common column for merging, typically the demographic name
+    common_column = demo
+
+    raw_df['reportedAt'] = pd.to_datetime(raw_df['reportedAt'])
+    sheet_name = 'Completion Rate'
+    lowest_scores_sheet = 'Lowest Scores'
+
+    # Read the data from the sheets
+    data = pd.read_excel(excel_file, sheet_name=sheet_name)
+    lowest_scores = pd.read_excel(excel_file, sheet_name=lowest_scores_sheet)
+
+    body_style = normal_style
+
+    # Merge the two DataFrames
+    merged_df = pd.merge(data, lowest_scores, on=common_column, how='inner')
+
+    # Filter the merged DataFrame for the specific subgroup
+    subgroup_merged = merged_df[merged_df[common_column] == subgroup]
+
+    # print(subgroup_merged)
+
+    descriptions_df = pd.read_csv('CSVs/descriptions.csv')
+
+    # Set to keep track of influencers that have already been added
+    added_influencers = set()
+
+    def calculate_dynamic_cutoff(row):
+        lowest_inf = float(row['Lowest Influencer'].split(':')[1].strip())
+        second_lowest_inf = float(row['Second Lowest Influencer'].split(':')[1].strip())
+        return (lowest_inf + second_lowest_inf) / 2
+
+    def add_influencer(influencer, style, cutoff):
+        if float(influencer[1]) <= cutoff:
+            influencer_text = f"{influencer[0]} - {round(float(influencer[1]))}"
+            elements.append(Paragraph(influencer_text, style))
+
+            # Check if the influencer has already been added
+            if influencer[0] not in added_influencers:
+                # Look up the definition and recommendation from the descriptions_df
+                description_row = descriptions_df[descriptions_df['Influencer'] == influencer[0]]
+                if not description_row.empty:
+                    definition = description_row['Definition'].values[0].replace('\n', '<br/>')
+                    recommendation = description_row['Recommendation'].values[0].replace('\n', '<br/>')
+
+                    definition_paragraph = Paragraph(f"<b>Definition:</b><br/>{definition}", body_style)
+                    recommendation_paragraph = Paragraph(f"<b>Recommendations:</b><br/>{recommendation}", body_style)
+
+                    elements.append(definition_paragraph)
+                    elements.append(recommendation_paragraph)
+
+                    # Mark this influencer as added
+                    added_influencers.add(influencer[0])
+                else:
+                    elements.append(Paragraph("No description available.", body_style))
+
+
+    # Loop through the filtered DataFrame for the specific subgroup
+    for _, row in subgroup_merged.iterrows():
+        if row['completed_members'] >= 1:
+
+            # Calculate the dynamic cutoff value
+            dynamic_cutoff = calculate_dynamic_cutoff(row) + 50
+
+            # Extract and sort influencers
+            lowest_inf = row['Lowest Influencer'].split(':')
+            second_lowest_inf = row['Second Lowest Influencer'].split(':')
+
+            # Create a list of influencers
+            influencers = [
+                (lowest_inf[0], lowest_inf[1]),
+                (second_lowest_inf[0], second_lowest_inf[1])
+            ]
+
+            # Retrieve additional lowest influencers if available
+            additional_influencers = []
+            if 'Third Lowest Influencer' in row:
+                third_lowest_inf = row['Third Lowest Influencer'].split(':')
+                additional_influencers.append((third_lowest_inf[0], third_lowest_inf[1]))
+
+            # Merge all influencers and sort by their scores
+            all_influencers = influencers + additional_influencers
+            all_influencers.sort(key=lambda x: float(x[1]))
+
+            # Limit to a maximum of 3 influencers but at least 1
+            num_to_print = min(max(len(all_influencers), 2), 2)
+
+            large_bold_style = ParagraphStyle(
+                'LargeBold',
+                parent=styles['BodyText'],
+                fontSize=11,
+                leading=20,
+                spaceAfter=8,
+                fontName='Lexend-Bold'
+            )
+
+            for i in range(num_to_print):
+                add_influencer(all_influencers[i], large_bold_style, dynamic_cutoff)
+
+
 
     # Build the PDF with headers
     pdf.build(elements, onFirstPage=lambda c, d: culture_header(c, d, company_name, logo_path),
