@@ -12,7 +12,7 @@ from reportlab.platypus import Image
 import os
 
 
-def subgroup_table(raw_df, org_name, demo, output_df, final_df):
+def subgroup_table(raw_df, org_name, demo, output_df, final_df, excel_file):
     font_path = "fonts/Lexend-Bold.ttf"
     pdfmetrics.registerFont(TTFont('Lexend-Bold', font_path))
     font_path = "fonts/Lexend-Regular.ttf"
@@ -66,12 +66,65 @@ def subgroup_table(raw_df, org_name, demo, output_df, final_df):
     # Calculate bad scores (scores less than 40)
     bad_scores = (numeric_total_row < 40).sum().sum()
 
+    # demographics_df = pd.read_csv(demographics_file)
+
+    # completed_counts = demographics_df[demographics_df['response'] == 'Y'].groupby(demographic_column)[
+    #     'userId'].count().reset_index(
+    #     name='completed_members')
+    #
+    # print(completed_counts)
+
+    # # Merge the results to get a complete view
+    # final_counts = pd.merge(department_counts, completed_counts, on=department_column, how='left')
+    # print(final_counts)
+
+    # # Function to check if the completed members are above 5 for a given row
+    # def has_sufficient_members(row):
+    #     return row['completed_members'] > 5  # Replace 'Completed Members' with the actual column name
+    #
+    # # Filter rows with sufficient members
+    # sufficient_members_df = scores_df[scores_df.apply(has_sufficient_members, axis=1)]
+
+    # print(scores_df)
+
+    sheet_name = 'Completion Rate'
+    lowest_scores_sheet = 'Lowest Scores'
+
+    # Read the data from the sheets
+    data = pd.read_excel(excel_file, sheet_name=sheet_name)
+    lowest_scores = pd.read_excel(excel_file, sheet_name=0)
+
+    print(data)
+    print(lowest_scores)
+
+    # Define the common column for the merge as the first column of each DataFrame
+    common_column_data = data.columns[0]
+    common_column_lowest_scores = lowest_scores.columns[0]
+
+    # Merge the two DataFrames based on the first column
+    merged_df = pd.merge(data, lowest_scores, left_on=common_column_data, right_on=common_column_lowest_scores,
+                         how='inner')
+
+    # Function to check if the completed members are above 5 for a given row
+    def has_sufficient_members(row):
+        return row['completed_members'] > 5  # Replace 'Completed Members' with the actual column name
+
+    # Filter rows with sufficient members
+    sufficient_members_df = merged_df[merged_df.apply(has_sufficient_members, axis=1)]
+
+    print(sufficient_members_df)
+
     # Extract the column name containing the wellbeing potential scores
     wellbeing_potential_column = \
-    scores_df.columns[scores_df.columns.str.contains("Wellbeing/Performance Potential", case=False)].tolist()[0]
+    sufficient_members_df.columns[sufficient_members_df.columns.str.contains("Wellbeing/Performance Potential", case=False)].tolist()[0]
 
-    # Find the row with the minimum wellbeing potential score
-    min_score_row = scores_df.loc[scores_df[wellbeing_potential_column].idxmin()]
+    # Check if there are rows with sufficient members
+    if not sufficient_members_df.empty:
+        # Find the row with the minimum wellbeing potential score among rows with sufficient members
+        min_score_row = sufficient_members_df.loc[sufficient_members_df[wellbeing_potential_column].idxmin()]
+    else:
+        # Handle the case where no rows have sufficient members (e.g., fallback to a default or raise an error)
+        min_score_row = scores_df.loc[scores_df[wellbeing_potential_column].idxmin()]
 
     # Extract the minimum score and its respective demographic label
     lowest_score = min_score_row[wellbeing_potential_column]
@@ -464,6 +517,9 @@ def subgroup_table(raw_df, org_name, demo, output_df, final_df):
         assessment_highlight = [["For the OVERALL group, there were 0 influencers scoring lower than " \
                                "40. This reflects that no one influencer within the organization comprehensively " \
                                "undermines the Wellbeing and Performance Potential of the cohort."]]
+    elif bad_scores == 1:
+        assessment_highlight = [["For the OVERALL group, there was 1 influencer scoring lower than " \
+                               "40. This reflects that this influencer systemically limits the Wellbeing and Performance Potential of the cohort."]]
     else:
         assessment_highlight = [[f"For the OVERALL group, there were {str(bad_scores)} influencers scoring lower than " \
                                "40. This reflects that these influencers systemically limit the Wellbeing and Performance " \
