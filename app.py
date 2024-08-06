@@ -73,7 +73,7 @@ if demographics_file and raw_data_file:
     # Check and fill Demographic 1 with groupName if groupName exists
     if 'groupName' in merged_df.columns:
         merged_df['Demographic 1'] = merged_df['groupName']
-        print("'Demographic 1' assigned from 'groupName'")
+        # print("'Demographic 1' assigned from 'groupName'")
 
     # Check if there are any columns ending with '_x'
     x_columns = [col for col in merged_df.columns if col.endswith('_x') and not col.startswith('score_')]
@@ -82,7 +82,7 @@ if demographics_file and raw_data_file:
         demographic_columns = ['Demographic 2', 'Demographic 3', 'Demographic 4']
         for demo_col, x_col in zip(demographic_columns, x_columns):
             merged_df[demo_col] = merged_df[x_col]
-            print(f"'{demo_col}' assigned from '{x_col}'")
+            # print(f"'{demo_col}' assigned from '{x_col}'")
             merged_df.drop(columns=[x_col], inplace=True)
 
     ### INSERT DEMOGRAPHIC 4 HERE IF NEEDED
@@ -258,7 +258,7 @@ if demographics_file and raw_data_file:
                     buf = create_culture_report_with_header(demo, subgroup, final_df,org,logo_path)
                     output_df = pd.read_excel(tmp_path, sheet_name=None)
                     completed_members = len(demographics_df)
-                    buf2 = subgroup_table(raw_data_df, org, subgroup, output_df, demo,org,logo_path)
+                    buf2 = subgroup_table(raw_data_df, org, subgroup, output_df, demo,org,logo_path, tmp_path)
 
                     # Merge PDFs
                     combined_pdf = merge_pdfs(buf.getvalue(), glossary_pdf, buf2, org, logo_path)
